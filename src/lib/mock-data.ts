@@ -296,7 +296,15 @@ const TOPIC_DESCRIPTIONS: Record<RippleTopic, (countryName: string, role: string
   general:  (n, r) => `${n} (${r}) is closely monitoring the situation, with analysts estimating downstream effects on trade, security and political relations in the coming weeks.`,
 };
 
+/** Deterministic float 0.3–0.9 derived from a string + salt — varies per article */
+function hashImpact(str: string, salt: number): number {
+  let h = salt * 31;
+  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) | 0;
+  return 0.3 + (Math.abs(h) % 60) / 100;
+}
+
 export function getMockRippleEffect(sourceCountry: string, articleTitle = '') {
+
   const pool = (RIPPLE_POOL[sourceCountry.toUpperCase()] ?? RIPPLE_POOL.DEFAULT)
     .filter((c) => c !== sourceCountry.toUpperCase());
 
