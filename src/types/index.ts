@@ -49,3 +49,31 @@ export interface SentimentAtmosphere {
   averageSentiment: number;
   color: [number, number, number]; // RGB
 }
+
+/** Country information */
+export interface CountryInfo {
+  name: string;
+  code: string;
+  lat: number;
+  lng: number;
+  neighbors: string[];
+}
+
+/** GNews API response types */
+export interface GNewsArticle {
+  title: string;
+  description: string;
+  content: string;
+  url: string;
+  image: string;
+  publishedAt: string;
+  source: {
+    name: string;
+    url: string;
+  };
+}
+
+export interface GNewsResponse {
+  totalArticles: number;
+  articles: GNewsArticle[];
+}

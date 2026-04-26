@@ -185,3 +185,20 @@ export const MOCK_BREAKING_NEWS: GlobePoint[] = [
   { lat: 41.0082, lng: 28.9784,  intensity: 0.64, label: 'Istanbul',      country: 'TR' },
 ];
 
+export function getMockCounterPerspective() {
+  return {
+    region: 'European Union',
+    headline: 'EU Urges Caution Amid New Policy Shifts',
+    summary: 'European policymakers expressed concern over the potential destabilizing effects of the recent developments, emphasizing the need for multilateral cooperation.'
+  };
+}
+
+export function getMockRippleEffect(sourceCountry: string) {
+  return {
+    affectedCountries: [
+      { code: 'US', impact: 0.8, description: 'Markets react to shifting supply chains.', lat: 38.9072, lng: -77.0369 },
+      { code: 'CN', impact: 0.6, description: 'Adjusting trade strategies in response.', lat: 39.9042, lng: 116.4074 },
+      { code: 'GB', impact: 0.4, description: 'Monitoring geopolitical implications closely.', lat: 51.5074, lng: -0.1278 }
+    ].filter(c => c.code !== sourceCountry)
+  };
+}

@@ -185,3 +185,74 @@ Respond ONLY with a valid JSON array.`;
     return [];
   }
 }
+
+export async function getCounterPerspective(
+  articleTitle: string,
+  articleSummary: string,
+  sourceCountry: string
+): Promise<{ region: string; headline: string; summary: string }> {
+  if (!process.env.GROQ_API_KEY && !process.env.GEMINI_API_KEY) return { region: 'N/A', headline: '', summary: '' };
+
+  const prompt = `Analyze this news article from ${sourceCountry} and provide a counter-perspective or an alternative viewpoint from another region that might be affected or have a different take.
+Title: ${articleTitle}
+Summary: ${articleSummary}
+
+Return a JSON object with exactly these fields:
+- "region": A specific country or region providing the counter-perspective.
+- "headline": A hypothetical headline representing this alternative view.
+- "summary": A 1-2 sentence summary of the counter-perspective.
+
+Respond ONLY with a valid JSON object.`;
+
+  try {
+    const text    = await generate(prompt, undefined, '{}');
+    const cleaned = text.replace(/^```json?\n?/i, '').replace(/\n?```$/i, '').trim();
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return { region: 'Error', headline: 'Failed to parse', summary: '' };
+    const parsed = JSON.parse(jsonMatch[0]);
+    return {
+      region: parsed.region || 'Unknown',
+      headline: parsed.headline || '',
+      summary: parsed.summary || ''
+    };
+  } catch (error) {
+    console.error('[ai] getCounterPerspective error:', error);
+    return { region: 'Error', headline: 'AI failed', summary: String(error) };
+  }
+}
+
+export async function getRippleEffects(
+  articleTitle: string,
+  articleSummary: string,
+  sourceCountry: string
+): Promise<{ code: string; impact: number; description: string }[]> {
+  if (!process.env.GROQ_API_KEY && !process.env.GEMINI_API_KEY) return [];
+
+  const prompt = `Analyze this news from ${sourceCountry} and predict its global ripple effects. Identify up to 3 countries (excluding ${sourceCountry}) that will be most impacted.
+
+Title: ${articleTitle}
+Summary: ${articleSummary}
+
+Return a JSON array of objects, where each object has:
+- "code": The 2-letter ISO country code of the impacted country (e.g., "US", "CN").
+- "impact": A number from 0 to 1 representing the intensity of the impact.
+- "description": A 1-sentence explanation of how this country is affected.
+
+Respond ONLY with a valid JSON array.`;
+
+  try {
+    const text    = await generate(prompt, undefined, '[]');
+    const cleaned = text.replace(/^```json?\n?/i, '').replace(/\n?```$/i, '').trim();
+    const jsonMatch = cleaned.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) return [];
+    const parsed = JSON.parse(jsonMatch[0]);
+    return parsed.map((item: { code?: string; impact?: number; description?: string }) => ({
+      code: item.code || 'UN',
+      impact: Number(item.impact) || 0.5,
+      description: item.description || ''
+    }));
+  } catch (error) {
+    console.error('[ai] getRippleEffects error:', error);
+    return [];
+  }
+}
