@@ -59,11 +59,11 @@ export interface NewsAPIResponse {
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-function getApiKey(): string {
-  const k = process.env.NEWS_API_KEY;
-  if (!k) throw new Error('NEWS_API_KEY is not set in .env.local');
-  return k;
+/** Returns the API key or null if not configured (never throws) */
+function getApiKey(): string | null {
+  return process.env.NEWS_API_KEY ?? null;
 }
+
 
 /** Remove placeholder / removed articles */
 function clean(articles: NewsAPIArticle[]): NewsAPIArticle[] {
@@ -258,8 +258,25 @@ export async function fetchCountryHeadlines(
   category?: string,
   useAI = true
 ): Promise<NewsAPIResponse & { rateLimited?: boolean }> {
-  const key      = getApiKey();
+  const key = getApiKey();
+
+  // No API key configured — return mock-triggering response immediately
+  if (!key) {
+    console.warn('[NewsAPI] NEWS_API_KEY not set — serving mock data');
+    return {
+      status: 'rateLimited',
+      totalResults: 0,
+      articles: [],
+      rateLimited: true,
+      filterInfo: {
+        fetched: 0, scored: 0, aiValidated: false, threshold: 0, fallback: true,
+        message: 'NEWS_API_KEY not configured — showing demo data',
+      },
+    };
+  }
+
   const code     = countryCode.toLowerCase();
+
   const profile  = getSourceProfile(countryCode);
   const keywords = profile?.keywords ?? [countryName.toLowerCase()];
 
@@ -369,7 +386,14 @@ export async function fetchCountryHeadlines(
 
 export async function fetchGlobalHeadlines(category?: string): Promise<NewsAPIResponse> {
   const key = getApiKey();
-  const p   = new URLSearchParams({ apiKey: key, language: 'en', pageSize: '20' });
+  if (!key) {
+    return {
+      status: 'ok', totalResults: 0, articles: [],
+      filterInfo: { fetched: 0, scored: 0, aiValidated: false, threshold: 0, fallback: true, message: 'NEWS_API_KEY not configured' },
+    };
+  }
+  const p = new URLSearchParams({ apiKey: key, language: 'en', pageSize: '20' });
+
   if (category) p.set('category', category);
   const { articles } = await fetchSafe(`${NEWSAPI_BASE}/top-headlines?${p}`, 'global');
   return {
@@ -393,8 +417,15 @@ export async function fetchStateNews(
   countryName: string,
   sortBy: 'publishedAt' | 'popularity' | 'relevancy' = 'publishedAt'
 ): Promise<NewsAPIResponse> {
-  const key      = getApiKey();
+  const key = getApiKey();
+  if (!key) {
+    return {
+      status: 'rateLimited', totalResults: 0, articles: [],
+      filterInfo: { fetched: 0, scored: 0, aiValidated: false, threshold: 0, fallback: true, message: 'NEWS_API_KEY not configured' },
+    };
+  }
   const profile  = getSourceProfile(countryCode);
+
   const keywords = [stateName.toLowerCase(), countryName.toLowerCase(), ...(profile?.keywords ?? [])];
 
   // Single request — exact quoted phrase ensures relevance

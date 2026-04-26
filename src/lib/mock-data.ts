@@ -1,4 +1,6 @@
 import { AnalyzedArticle, GlobePoint } from '@/types';
+import { COUNTRIES } from '@/data/countries';
+
 
 function uid(): string {
   return Math.random().toString(36).substring(2, 9);
@@ -193,12 +195,73 @@ export function getMockCounterPerspective() {
   };
 }
 
-export function getMockRippleEffect(sourceCountry: string) {
+// ── Ripple Effect candidates per region ────────────────────────────────────
+const RIPPLE_POOL: Record<string, string[]> = {
+  // Americas
+  US: ['GB', 'CN', 'CA', 'MX', 'DE', 'JP', 'AU'],
+  CA: ['US', 'GB', 'MX', 'FR', 'CN'],
+  MX: ['US', 'CA', 'BR', 'CO', 'GB'],
+  BR: ['US', 'AR', 'CN', 'DE', 'PT'],
+  AR: ['BR', 'CL', 'US', 'ES', 'CN'],
+  CL: ['BR', 'AR', 'US', 'CN', 'ES'],
+  CO: ['US', 'MX', 'BR', 'VE', 'ES'],
+  // Europe
+  GB: ['US', 'DE', 'FR', 'IE', 'AU', 'CA'],
+  DE: ['FR', 'PL', 'GB', 'US', 'CN', 'AT'],
+  FR: ['DE', 'GB', 'ES', 'IT', 'US', 'BE'],
+  RU: ['UA', 'DE', 'CN', 'US', 'TR', 'PL'],
+  UA: ['RU', 'PL', 'DE', 'US', 'GB', 'FR'],
+  PL: ['DE', 'UA', 'FR', 'US', 'CZ'],
+  TR: ['GR', 'DE', 'SA', 'US', 'RU', 'SY'],
+  // Middle East & Africa
+  IL: ['US', 'GB', 'DE', 'EG', 'SA', 'IR'],
+  SA: ['AE', 'US', 'CN', 'GB', 'EG', 'IN'],
+  IR: ['US', 'IL', 'SA', 'RU', 'CN', 'DE'],
+  EG: ['SA', 'IL', 'US', 'DE', 'TR', 'GB'],
+  NG: ['GB', 'US', 'ZA', 'FR', 'CN'],
+  ZA: ['NG', 'GB', 'US', 'CN', 'DE'],
+  // Asia-Pacific
+  CN: ['US', 'JP', 'KR', 'AU', 'DE', 'IN'],
+  JP: ['US', 'CN', 'KR', 'AU', 'DE', 'GB'],
+  IN: ['CN', 'US', 'GB', 'PK', 'AU', 'DE'],
+  KR: ['JP', 'CN', 'US', 'AU', 'DE'],
+  AU: ['US', 'GB', 'CN', 'JP', 'IN', 'NZ'],
+  PK: ['IN', 'CN', 'US', 'SA', 'AU'],
+  ID: ['AU', 'CN', 'US', 'JP', 'MY'],
+  // Default pool
+  DEFAULT: ['US', 'CN', 'DE', 'GB', 'FR', 'JP', 'AU'],
+};
+
+/** Generate varied ripple impacts from a string (article title) — deterministic but looks random */
+function hashImpact(str: string, salt: number): number {
+  let h = salt * 31;
+  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) | 0;
+  // Normalise to 0.3 – 0.9 range
+  return 0.3 + (Math.abs(h) % 60) / 100;
+}
+
+export function getMockRippleEffect(sourceCountry: string, articleTitle = '') {
+  const pool = (RIPPLE_POOL[sourceCountry.toUpperCase()] ?? RIPPLE_POOL.DEFAULT)
+    .filter((c) => c !== sourceCountry.toUpperCase());
+
+  // Pick 3 varied countries using title hash to ensure different articles get different countries
+  const titleHash = articleTitle.split('').reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 17);
+  const start     = Math.abs(titleHash) % Math.max(1, pool.length - 3);
+  const chosen    = pool.slice(start, start + 3).length === 3
+    ? pool.slice(start, start + 3)
+    : pool.slice(0, 3);
+
   return {
-    affectedCountries: [
-      { code: 'US', impact: 0.8, description: 'Markets react to shifting supply chains.', lat: 38.9072, lng: -77.0369 },
-      { code: 'CN', impact: 0.6, description: 'Adjusting trade strategies in response.', lat: 39.9042, lng: 116.4074 },
-      { code: 'GB', impact: 0.4, description: 'Monitoring geopolitical implications closely.', lat: 51.5074, lng: -0.1278 }
-    ].filter(c => c.code !== sourceCountry)
+    affectedCountries: chosen.map((code, i) => {
+      const info = COUNTRIES[code];
+      return {
+        code,
+        impact: parseFloat(hashImpact(articleTitle + code, i + 1).toFixed(2)),
+        description: `${info?.name ?? code} monitors developments closely.`,
+        lat:  info?.lat  ?? 0,
+        lng:  info?.lng  ?? 0,
+      };
+    }),
   };
 }
+

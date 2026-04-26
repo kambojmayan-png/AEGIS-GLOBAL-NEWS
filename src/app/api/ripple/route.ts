@@ -44,7 +44,8 @@ export async function POST(request: NextRequest) {
 
     // Fallback to mock data ─────────────────────────────────────────────────
     if (!rippleItems || rippleItems.length === 0) {
-      const mock = getMockRippleEffect(countryCode.toUpperCase());
+      const mock = getMockRippleEffect(countryCode.toUpperCase(), title);
+
       rippleItems = mock.affectedCountries.map((c) => ({
         code: c.code,
         impact: c.impact,
