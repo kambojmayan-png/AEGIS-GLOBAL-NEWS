@@ -362,14 +362,20 @@ export default function ArticleCard({ article, index, selectedCountry }: Article
                     </span>
                   </div>
                 ) : rippleData && rippleData.length > 0 ? (
-                  <div className="space-y-2.5">
-                    {rippleData.map((r) => (
-                      <div key={r.code} className="space-y-1">
+                  <div className="space-y-3.5">
+                    {rippleData.map((r, idx) => (
+                      <div key={r.code} className={`space-y-1.5 ${idx > 0 ? 'pt-3 border-t border-cyan-900/30' : ''}`}>
                         <div className="flex items-center justify-between">
-                          <span className="text-[0.65rem] font-mono font-semibold text-slate-200">
+                          <span className="text-[0.7rem] font-mono font-bold text-slate-100 tracking-wide">
                             {r.name}
                           </span>
-                          <span className="text-[0.6rem] font-mono" style={{ color: r.impact > 0.6 ? '#ef4444' : r.impact > 0.3 ? '#f59e0b' : '#22d3ee' }}>
+                          <span
+                            className="text-[0.62rem] font-mono font-semibold px-1.5 py-0.5 rounded"
+                            style={{
+                              color: r.impact > 0.6 ? '#ef4444' : r.impact > 0.3 ? '#f59e0b' : '#22d3ee',
+                              background: r.impact > 0.6 ? 'rgba(239,68,68,0.1)' : r.impact > 0.3 ? 'rgba(245,158,11,0.1)' : 'rgba(34,211,238,0.1)',
+                            }}
+                          >
                             {Math.round(r.impact * 100)}% impact
                           </span>
                         </div>
@@ -389,12 +395,15 @@ export default function ArticleCard({ article, index, selectedCountry }: Article
                             }}
                           />
                         </div>
-                        <p className="text-[0.6rem] text-slate-500 leading-snug">
+                        {/* Description */}
+                        <p className="text-[0.68rem] text-slate-300 leading-relaxed">
+                          <span className="text-cyan-500 font-mono font-semibold text-[0.6rem] uppercase tracking-wider mr-1">Analysis:</span>
                           {r.description}
                         </p>
                       </div>
                     ))}
                   </div>
+
                 ) : (
                   <p className="text-[0.65rem] text-slate-500 py-1">
                     No significant ripple effects predicted for this article.

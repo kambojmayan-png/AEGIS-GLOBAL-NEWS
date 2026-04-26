@@ -232,36 +232,97 @@ const RIPPLE_POOL: Record<string, string[]> = {
   DEFAULT: ['US', 'CN', 'DE', 'GB', 'FR', 'JP', 'AU'],
 };
 
-/** Generate varied ripple impacts from a string (article title) — deterministic but looks random */
-function hashImpact(str: string, salt: number): number {
-  let h = salt * 31;
-  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) | 0;
-  // Normalise to 0.3 – 0.9 range
-  return 0.3 + (Math.abs(h) % 60) / 100;
+// ── Topic buckets — matched against article title keywords ─────────────────
+type RippleTopic = 'trade' | 'military' | 'energy' | 'finance' | 'tech' | 'health' | 'climate' | 'politics' | 'general';
+
+function detectTopic(title: string): RippleTopic {
+  const t = title.toLowerCase();
+  if (/trade|tariff|export|import|supply chain|sanction|wto|commerce/.test(t)) return 'trade';
+  if (/military|war|missile|troops|nato|defense|drone|conflict|attack|army/.test(t)) return 'military';
+  if (/oil|gas|energy|opec|crude|pipeline|renewabl|solar|coal|nuclear fuel/.test(t)) return 'energy';
+  if (/rate|inflation|gdp|bank|stock|bond|currency|market|recession|crypto|fiscal/.test(t)) return 'finance';
+  if (/tech|ai|chip|semiconductor|cyber|software|digital|5g|quantum|startup/.test(t)) return 'tech';
+  if (/health|disease|virus|vaccine|pandemic|hospital|medicine|cancer|outbreak/.test(t)) return 'health';
+  if (/climate|carbon|emission|flood|drought|wildfire|temperature|environment/.test(t)) return 'climate';
+  if (/election|government|minister|president|parliament|policy|sanction|coup/.test(t)) return 'politics';
+  return 'general';
 }
+
+// ── Per-country relationship descriptors ───────────────────────────────────
+// Maps: affected country code → short phrase describing their relationship to the source
+const COUNTRY_ROLE: Record<string, string> = {
+  US:  'the world\'s largest economy and key security guarantor',
+  CN:  'the primary manufacturing hub and largest trading partner for many economies',
+  DE:  'Europe\'s industrial powerhouse and largest exporter',
+  GB:  'a leading financial centre and permanent UN Security Council member',
+  FR:  'a nuclear power and EU co-anchor with deep diplomatic reach',
+  JP:  'Asia\'s second-largest economy and major technology exporter',
+  AU:  'a key commodity exporter and Indo-Pacific security partner',
+  CA:  'a G7 member deeply integrated into North American supply chains',
+  IN:  'the world\'s most populous nation and fastest-growing major economy',
+  KR:  'a global leader in semiconductors, EVs, and consumer electronics',
+  BR:  'South America\'s largest economy and major agricultural exporter',
+  RU:  'a top energy exporter and permanent UN Security Council veto holder',
+  SA:  'OPEC\'s de-facto leader and the world\'s largest oil exporter',
+  TR:  'a NATO member straddling Europe and Asia with significant leverage',
+  ID:  'the world\'s largest archipelago and Southeast Asia\'s biggest economy',
+  MX:  'the US\'s top trading partner under the USMCA agreement',
+  PK:  'a nuclear-armed state with strategic ties to China and the Gulf',
+  IL:  'a regional military and tech power with strong Western alliances',
+  IR:  'an oil-rich state under heavy Western sanctions with regional influence',
+  EG:  'controller of the Suez Canal, a critical global shipping chokepoint',
+  NG:  'Africa\'s largest oil producer and most populous nation',
+  ZA:  'Africa\'s most industrialised economy and G20 member',
+  UA:  'the frontline of Europe\'s security order and a major grain exporter',
+  PL:  'NATO\'s eastern flank anchor with the EU\'s fastest military build-up',
+  AE:  'a global financial hub and leading Gulf diversification success story',
+  AR:  'a major lithium and agricultural commodities producer',
+  CL:  'home to the world\'s largest copper and lithium reserves',
+  NZ:  'a Pacific trade and security partner with strong commodity exports',
+  MY:  'a key semiconductor assembly hub and palm oil exporter',
+  VE:  'a major oil producer in political crisis under US sanctions',
+};
+
+// ── Topic-aware description templates per topic ────────────────────────────
+const TOPIC_DESCRIPTIONS: Record<RippleTopic, (countryName: string, role: string) => string> = {
+  trade:    (n, r) => `${n} (${r}) faces direct trade flow disruption as supply chains and tariff regimes tied to this development are reassessed by importers and exporters alike.`,
+  military: (n, r) => `${n} (${r}) is on heightened alert, with defence ministries reviewing contingency plans and allies signalling potential redeployment of assets in the region.`,
+  energy:   (n, r) => `${n} (${r}) is recalculating energy import costs and contract terms, as commodity price volatility triggered by this development ripples through global fuel markets.`,
+  finance:  (n, r) => `${n} (${r}) is exposed through currency markets and cross-border investment flows, with central bank analysts watching for second-order effects on inflation and liquidity.`,
+  tech:     (n, r) => `${n} (${r}) is assessing technology supply chain dependencies, particularly in semiconductors and software licensing, which may be affected by regulatory or export changes.`,
+  health:   (n, r) => `${n} (${r}) has activated cross-border health coordination protocols, with WHO regional offices increasing surveillance and pharmaceutical supply chains being stress-tested.`,
+  climate:  (n, r) => `${n} (${r}) is re-evaluating its climate commitments and green investment pipeline, as this development shifts global carbon pricing and bilateral climate finance frameworks.`,
+  politics: (n, r) => `${n} (${r}) is recalibrating its diplomatic posture, with foreign ministry officials convening emergency briefings to assess implications for bilateral agreements and regional stability.`,
+  general:  (n, r) => `${n} (${r}) is closely monitoring the situation, with analysts estimating downstream effects on trade, security and political relations in the coming weeks.`,
+};
 
 export function getMockRippleEffect(sourceCountry: string, articleTitle = '') {
   const pool = (RIPPLE_POOL[sourceCountry.toUpperCase()] ?? RIPPLE_POOL.DEFAULT)
     .filter((c) => c !== sourceCountry.toUpperCase());
 
-  // Pick 3 varied countries using title hash to ensure different articles get different countries
+  // Pick 3 varied countries using title hash
   const titleHash = articleTitle.split('').reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 17);
   const start     = Math.abs(titleHash) % Math.max(1, pool.length - 3);
   const chosen    = pool.slice(start, start + 3).length === 3
     ? pool.slice(start, start + 3)
     : pool.slice(0, 3);
 
+  const topic = detectTopic(articleTitle);
+
   return {
     affectedCountries: chosen.map((code, i) => {
-      const info = COUNTRIES[code];
+      const info  = COUNTRIES[code];
+      const name  = info?.name ?? code;
+      const role  = COUNTRY_ROLE[code] ?? 'a key regional stakeholder';
       return {
         code,
-        impact: parseFloat(hashImpact(articleTitle + code, i + 1).toFixed(2)),
-        description: `${info?.name ?? code} monitors developments closely.`,
-        lat:  info?.lat  ?? 0,
-        lng:  info?.lng  ?? 0,
+        impact:      parseFloat(hashImpact(articleTitle + code, i + 1).toFixed(2)),
+        description: TOPIC_DESCRIPTIONS[topic](name, role),
+        lat:  info?.lat ?? 0,
+        lng:  info?.lng ?? 0,
       };
     }),
   };
 }
+
 
